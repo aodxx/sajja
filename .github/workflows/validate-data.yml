@@ -1,0 +1,26 @@
+name: ✅ Validate data (JSON Schema + กติกาความสอดคล้อง)
+on:
+  push:
+    paths: ["data/**", "schema/**"]
+  pull_request:
+    paths: ["data/**", "schema/**"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: validate ทุกไฟล์ใน data/
+        run: |
+          shopt -s nullglob
+          files=(data/*.json)
+          if [ ${#files[@]} -eq 0 ]; then echo "ยังไม่มีไฟล์ข้อมูล — ข้าม"; exit 0; fi
+          node scripts/validate.mjs schema/*.json data/*.json
+      - name: business-logic regression tests
+        run: node scripts/test-calc.mjs
+      - name: result
+        run: echo "ข้อมูลตรวจสอบผ่านทั้งหมด ✅"

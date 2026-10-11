@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<title>เงินสัจจะชุมชน</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header class="appbar">
+    <button id="btnHome" class="appbar-home" aria-label="หน้าหลัก">
+      <span class="logo">฿</span>
+      <span class="appbar-title" id="appTitle">เงินสัจจะชุมชน</span>
+    </button>
+    <div class="appbar-right">
+      <span id="connDot" class="conn-dot online" title="สถานะอินเทอร์เน็ต"></span>
+      <span id="userBadge" class="user-badge hidden"></span>
+    </div>
+  </header>
+
+  <main id="view" class="view" tabindex="-1"></main>
+
+  <nav id="tabbar" class="tabbar hidden" aria-label="เมนูหลัก">
+    <button data-route="dashboard"><span class="ic">🏠</span>หน้าหลัก</button>
+    <button data-route="savings"><span class="ic">💰</span>รับเงิน</button>
+    <button data-route="loans"><span class="ic">📄</span>กู้/ผ่อน</button>
+    <button data-route="members"><span class="ic">👥</span>สมาชิก</button>
+    <button data-route="menu"><span class="ic">☰</span>อื่นๆ</button>
+  </nav>
+</div>
+
+<!-- PIN login -->
+<div id="loginScreen" class="overlay hidden">
+  <div class="login-card">
+    <div class="login-logo">🛡️</div>
+    <h1 id="loginTitle">เข้าสู่ระบบ</h1>
+    <p class="muted" id="loginUser"></p>
+    <div class="pin-dots" id="pinDots"><i></i><i></i><i></i><i></i></div>
+    <div class="keypad" id="keypad"></div>
+    <button class="link-btn" id="btnBackToUsers">← เลือกผู้ใช้ใหม่</button>
+  </div>
+</div>
+
+<div id="toastHost" class="toast-host" aria-live="polite"></div>
+<div id="modalHost"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+name: ☁️ Backup — ตรวจ + เก็บประวัติข้อมูล
+on:
+  push:
+    paths: ["data/**"]
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: ตรวจ schema + ความสอดคล้อง
+        run: node scripts/validate.mjs schema/*.json data/*.json
+      - name: เก็บประวัติเป็น artifact (90 วัน)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_number }}-${{ github.ref_name }}
+          path: data/*.json
+          retention-days: 90
+      - name: เตือนเมื่อไม่มีการสำรองเกิน 14 วัน
+        run: |
+          LAST=$(git log -1 --format=%cs -- data/ || echo "")
+          TODAY=$(date +%s)
+          if [ -n "$LAST" ]; then
+            AGE=$(( (TODAY - $(date -d "$LAST" +%s)) / 86400 ))
+            echo "ข้อมูลอัปเดตล่าสุด $LAST ($AGE วันก่อน)"
+            if [ "$AGE" -gt 14 ]; then
+              echo "::warning::ไม่มีการสำรองข้อมูลจากกลุ่มเกิน $AGE วัน — เตือนเหรัญญิกด้วย!"
+            else
+              echo "::notice::การสำรองข้อมูลเป็นปกติ ✅"
+            fi
+          fi

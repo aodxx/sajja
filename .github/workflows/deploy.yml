@@ -1,0 +1,48 @@
+name: 🚀 Deploy app to GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: ["app/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: syntax-check JS
+        run: |
+          shopt -s nullglob
+          for f in app/js/*.js app/sw.js; do cp "$f" /tmp/chk.mjs && node --check /tmp/chk.mjs || { echo "❌ ล้มเหลวที่ไฟล์ $f"; exit 1; }; done
+          echo "✅ ผ่าน syntax ทุกไฟล์"
+      - name: run business-logic tests
+        run: |
+          node scripts/seed.mjs >/dev/null
+          node scripts/test-calc.mjs
+          node scripts/validate.mjs schema/*.json data/sample-data.json
+      - uses: actions/configure-pages@v5
+        with:
+          static_site_generator: "static"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

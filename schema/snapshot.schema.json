@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sajja-snapshot.schema.json",
+  "title": "ไฟล์สำรองข้อมูลกลุ่มเงินสัจจะ (sajja-data-v1)",
+  "type": "object",
+  "required": ["format", "exportedAt", "data"],
+  "properties": {
+    "format": { "const": "sajja-data-v1" },
+    "exportedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T" },
+    "appVersion": { "type": "string" },
+    "data": {
+      "type": "object",
+      "required": ["members", "txs", "loans"],
+      "properties": {
+        "members": { "type": "array", "items": { "$ref": "member.schema.json" } },
+        "txs": { "type": "array", "items": { "$ref": "transaction.schema.json" } },
+        "loans": { "type": "array", "items": { "$ref": "loan.schema.json" } },
+        "users": { "type": "array", "items": { "type": "object", "required": ["id", "type", "name", "role", "pin"], "properties": { "type": { "const": "users" }, "role": { "enum": ["treasurer", "secretary", "auditor"] } } } }
+      }
+    }
+  }
+}

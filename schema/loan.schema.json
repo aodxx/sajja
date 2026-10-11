@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "loan.schema.json",
+  "title": "สัญญากู้ยืม",
+  "type": "object",
+  "required": ["id", "type", "member", "name", "principal", "months", "start", "status"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^L\\d{3}$" },
+    "type": { "const": "loans" },
+    "member": { "type": "string", "pattern": "^S\\d{3}$" },
+    "name": { "type": "string", "minLength": 1 },
+    "principal": { "type": "number", "minimum": 100 },
+    "months": { "type": "integer", "minimum": 1, "maximum": 12 },
+    "feePct": { "type": "number", "minimum": 0, "maximum": 5 },
+    "purpose": { "enum": ["sick", "study", "other", "welfare", "emergency"] },
+    "purposeTh": { "type": "string" },
+    "guarantorIds": { "type": "array", "items": { "type": "string", "pattern": "^S\\d{3}$" }, "minItems": 2 },
+    "start": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "status": { "enum": ["waiting", "active", "closed", "void"] },
+    "appliedAt": { "type": "string" },
+    "approvedAt": { "type": "string" },
+    "approvedBy": { "type": "string" },
+    "closedAt": { "type": "string" },
+    "voidReason": { "type": "string" },
+    "note": { "type": "string", "maxLength": 300 },
+    "updatedAt": { "type": "string" },
+    "deletedAt": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

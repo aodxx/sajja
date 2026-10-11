@@ -1,0 +1,18 @@
+{
+  "name": "เงินสัจจะชุมชน — กลุ่มออมทรัพย์หมู่บ้าน",
+  "short_name": "เงินสัจจะ",
+  "description": "ระบบบริหารกลุ่มออมทรัพย์/เงินสัจจะชุมชน ใช้งานออฟไลน์ได้ 100%",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0fdfa",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icons/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ]
+}
