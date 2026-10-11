@@ -46,6 +46,12 @@ export async function renderDashboard(ctx) {
     todo.push({ ic: "🔕", t: `${a.loan.name} ค้างผ่อน ${a.overdueMonths} งวด (${a.balance} ฿)`, to: "loan:" + a.loan.id, prio: 0 }));
   alerts.filter((a) => a.flag === "due-soon").forEach((a) =>
     todo.push({ ic: "⏰", t: `${a.loan.name} จะครบกำหนดผ่อนวันที่ ${a.nextDue.due}`, to: "loan:" + a.loan.id, prio: 1 }));
+  {
+    const db = await import("./db.js");
+    const rec = await db.getDoc("settings", "recon-" + cur);
+    if (rec && rec.v && Math.abs((rec.v.counted ?? rec.v.expect) - rec.v.expect) > 0.5)
+      todo.unshift({ ic: "💰", t: `เทียบโถะเดือนนี้ส่วนต่าง ${Math.round((rec.v.counted ?? 0) - rec.v.expect)} ฿ — ยังไม่ได้เคลียร์ (${rec.v.note || "-"})`, to: "savings", prio: 0 });
+  }
   const waiting = st.loans.filter((l) => l.status === "waiting");
   waiting.forEach((l) => todo.push({ ic: "📝", t: `คำขอกู้รอพิจารณา ${l.pendingPrio === 1 ? "(เจ็บป่วย—ด่วน)" : ""} : ${l.name}`, to: "loan:" + l.id, prio: l.pendingPrio === "1" || l.pendingPrio === 1 ? 0 : 2 }));
   const backupAt = await kvGet("exportCacheAt");
@@ -67,6 +73,7 @@ export async function renderDashboard(ctx) {
     tile("👥", "ทะเบียนสมาชิก", active.length + " คน", () => ctx.nav("members")),
     tile("🧰", "สวัสดิการ", "คงเหลือ " + fmtBaht(wf.balance) + "฿", () => ctx.nav("welfare")),
     tile("📄", "กู้/ผ่อน", alerts.length + " รายการน่าสนใจ", () => ctx.nav("loans")),
+    tile("💵", "เคาน์เตอร์ผ่อน", "แตะเดียวรับครบ", () => ctx.nav("payday")),
     tile("📊", "รายงาน", "PDF · Excel · CSV", () => ctx.nav("reports")));
   root.append(h("div", { class: "section-title" }, "⚡ ทางลัด"), tiles);
 }

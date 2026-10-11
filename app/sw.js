@@ -1,5 +1,5 @@
 /* Service Worker — ทำให้ออฟไลน์ 100% (cache-first) */
-const CACHE = 'sajja-v1';
+const CACHE = "sajja-v5";
 const BASE = './';
 const ASSETS = [
   BASE, BASE + 'index.html', BASE + 'manifest.webmanifest', BASE + 'css/app.css',
@@ -9,7 +9,7 @@ const ASSETS = [
   BASE + 'js/ui-dashboard.js', BASE + 'js/ui-members.js', BASE + 'js/ui-savings.js',
   BASE + 'js/ui-loans.js', BASE + 'js/ui-welfare.js', BASE + 'js/ui-dividend.js',
   BASE + 'js/ui-reports.js', BASE + 'js/ui-settings.js', BASE + 'js/ui-audit.js',
-  BASE + 'js/ui-login.js'
+  BASE + 'js/ui-login.js', BASE + 'js/receipt.js', BASE + 'js/ui-payday.js', BASE + 'js/ui-verify.js'
 ];
 
 self.addEventListener('install', (e) => {

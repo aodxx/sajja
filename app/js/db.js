@@ -71,6 +71,7 @@ export async function saveDoc(type, partial, actor, action = "update") {
   const doc = { id: partial.id || (partial.code ? normCode(partial.code) : genId(type.slice(0, 3))) };
   const before = (await getDoc(type, doc.id)) || null;
   Object.assign(doc, partial, { id: doc.id, type });
+  if (!before) { doc.createdBy = actor || doc.createdBy; doc.createdAt = doc.createdAt || nowISO(); }
   if (before && before.deletedAt && !("deletedAt" in partial)) doc.deletedAt = null; // revive = แก้ไข
   await putDoc(doc);
   await logAudit({ actor, action: action || (before ? "update" : "create"), type, refId: doc.id, before, after: { ...doc } });

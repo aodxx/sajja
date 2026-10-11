@@ -1,7 +1,8 @@
 /* ui-savings.js — หน้า "รับเงิน" หัวใจของงานประจำเดือน: สัจจะ / หุ้น / ออมรายปี + ค่าปรับ */
-import { h, toast, fmtBaht, fmtYM, ymAdd, curYM, genId, modal, confirmBox, inputBox } from "./util.js";
-import { saveDoc, byType } from "./db.js";
+import { h, toast, fmtBaht, fmtYM, ymAdd, curYM, genId, modal, confirmBox, inputBox, fmtDate } from "./util.js";
+import { saveDoc, byType, getDoc } from "./db.js";
 import { sajaStatus, memberTotals, finesPending, sumSaja, round2 } from "./calc.js";
+import { attachReceipt, slipHTML } from "./receipt.js";
 
 const TABS = [["saja", "💵 สัจจะ"], ["share", "🧾 หุ้น"], ["annual", "🐷 ออมปี"]];
 
@@ -38,20 +39,29 @@ export async function renderSavings(ctx) {
       if (s === "sent") { paid++; sum += sumSaja(st, m.id, ym); }
       const amt = Number(m.monthly) || st.cfg.sajaMonthly || 50;
       const cls = s === "sent" ? "ok" : s === "late" ? "late" : "due";
-      list.append(h("button", {
-        class: "item",
-        style: "border:2px solid " + (cls === "ok" ? "var(--green)" : cls === "late" ? "var(--red)" : "var(--line)"),
-        onclick: () => (cls === "ok" ? showMonth(m) : recordSaja(m, amt)),
-      },
+      const rowKids = [
         h("span", { class: "avatar", style: "background:" + (cls === "ok" ? "var(--green-l)" : cls === "late" ? "var(--red-l)" : "var(--teal-l)") },
           cls === "ok" ? "✓" : (cls === "late" ? "!" : m.name.slice(0, 1))),
         h("span", { class: "grow" },
           h("span", { class: "name" }, m.name),
           h("span", { class: "meta" }, m.id + " · ต้องส่ง " + fmtBaht(amt) + "฿" + (cls === "late" ? " · 🔴ค้าง" : ""))),
-        h("span", { class: "right" },
-          cls === "ok" ? [document.createTextNode(fmtBaht(sumSaja(st, m.id, ym)) + "฿"), h("span", { class: "lbl" }, "✅ ส่งแล้ว")]
-            : cls === "late" ? h("span", { class: "badge b-red" }, "บันทึกส่ง")
-              : h("span", { class: "badge b-teal" }, "แตะเพื่อบันทึก"))));
+      ];
+      if (cls === "ok") {
+        const tx = st.txs.filter((x) => x.kind === "saja" && x.member === m.id && x.ym === ym).sort((a, b) => (a.updatedAt || "") < (b.updatedAt || "") ? -1 : 1).pop();
+        rowKids.push(h("span", { class: "right" }, fmtBaht(sumSaja(st, m.id, ym)) + "฿",
+          h("span", { class: "lbl" }, "✅ " + (tx && tx.receiptNo ? tx.receiptNo.slice(-4) : "ส่งแล้ว"))));
+        list.append(wrapRow(rowKids, m));
+      } else {
+        rowKids.push(
+          h("button", { class: "btn btn-sm btn-green", style: "min-width:74px", onclick: (e) => { e.stopPropagation(); recordSaja(m, amt); } }, "✓ รับ"),
+          h("button", { class: "btn btn-sm btn-ghost", style: "margin-left:6px", title: "กรอกยอดเอง", onclick: (e) => { e.stopPropagation(); recordSajaAsk(m, amt); } }, "✎"));
+        list.append(wrapRow(rowKids, m));
+      }
+      function wrapRow(kids, mm) {
+        const el = h("div", { class: "item", style: "border:2px solid " + (cls === "ok" ? "var(--green)" : cls === "late" ? "var(--red)" : "var(--line)"), cursor: "pointer" }, ...kids);
+        el.onclick = () => (cls === "ok" ? showMonth(mm) : recordSaja(mm, amt)); // แตะที่ชื่อ = รับยอดหลักทันที
+        return el;
+      }
     }
     const fineCount = members.map((m) => finesPending(st, m).length).reduce((a, b) => a + b, 0);
     const fineMembers = members.filter((m) => finesPending(st, m).length).length;
@@ -69,28 +79,88 @@ export async function renderSavings(ctx) {
       fineMembers ? h("div", { class: "note" },
         h("b", {}, `⚠️ ขาดส่ง ${fineMembers} คน (${fineCount} เดือน) ต้องเก็บค่าปรับคนละ ${st.cfg.lateFine}฿/ครั้ง`), h("br"),
         ctx.canEdit ? h("button", { class: "btn btn-gold btn-sm", style: "margin-top:8px", onclick: collectFines }, "🧾 ออกใบค่าปรับ → เข้ากองทุนสวัสดิการ") : null) : null);
-    body.append(list);
+    body.append(list, reconCard());
     return;
+
+    function reconCard() {
+      const card = h("div", { class: "card" },
+        h("h3", {}, "💰 เทียบโถะเงิน — " + fmtYM(ym)),
+        h("p", { class: "small muted" }, "หลังประชุม: นับเงินสดจริงที่ได้กับตา ใส่จำนวนในช่อง — ระบบเทียบว่าตรงกับที่บันทึกไปกี่บาท (ส่วนต่างห้ามละเลย ต้องกรอกเหตุผล)"),
+        h("p", { class: "small" }, "ระบบบันทึกว่ารับเดือนนี้: " + h("b", {}, fmtBaht(round2(sum)) + " ฿")));
+      const inp = h("input", { type: "number", placeholder: "นับเงินสดได้ (฿)", inputmode: "decimal", style: "min-height:56px;border:2px solid var(--line);border-radius:12px;padding:10px 14px;font-size:1.25rem;font-weight:800;width:100%;text-align:center" });
+      const note = h("input", { type: "text", placeholder: "หมายเหตุ (ใส่เมื่อยอดไม่ตรง เช่น ธ.บัตรค้าง 100)" });
+      const btnSave = h("button", { class: "btn btn-primary", style: "margin-top:8px" }, "🔒 บันทึกการเทียบ (เข้า Audit)");
+      const state = h("p", { class: "small" });
+      btnSave.onclick = async () => {
+        const counted = Number(inp.value);
+        if (!(counted >= 0)) return toast("กรอกจำนวนที่นับได้ก่อน", 2200, true);
+        const diff = round2(counted - sum);
+        if (Math.abs(diff) > 0.5 && !note.value.trim()) return toast("ยอดไม่ตรง — กรุณากรอกเหตุผลสั้นๆ", 2800, true);
+        await ctx.edit(async () => {
+          await saveDoc("settings", { id: "recon-" + ym, v: { expect: round2(sum), counted, diff, note: note.value.trim(), by: ctx.user?.name, at: new Date().toISOString() } }, ctx.user?.name, "update");
+        }, Math.abs(diff) < 0.5 ? "✅ ตรงกันเป๊ะ — ปิดงวดได้เลย" : "🟡 บันทึกส่วนต่าง " + fmtBaht(diff) + "฿ (เด้งเตือนบนหน้าหลักจนกว่าจะแก้)");
+      };
+      card.append(inp, note, btnSave, state);
+      getDoc("settings", "recon-" + ym).then((d) => {
+        if (d && d.v) {
+          state.innerHTML = d.v.diff && Math.abs(d.v.diff) > 0.5
+            ? `🟡 เทียบแล้ว ${fmtDate(d.v.at)}: นับ ${fmtBaht(d.v.counted)} ต่าง ${fmtBaht(d.v.diff)}฿ · ${d.v.note || "-"} · โดย ${d.v.by}`
+            : `🟢 เทียบแล้ว ${fmtDate(d.v.at)}: ยอดตรงเป๊ะ · โดย ${d.v.by}`;
+          if (Math.abs((d.v.counted ?? d.v.expect) - d.v.expect) < 0.5) card.style.borderColor = "#16a34a";
+        }
+      });
+      return card;
+    }
 
     async function render() { body.innerHTML = ""; await paintSaja(); root.append(body); }
 
     async function recordSaja(m, amt) {
-      const v = await inputBox("💵 รับเงินสัจจะ — " + m.name, {
+      const amount = round2(Number(amt)); if (!(amount > 0)) return;
+      await ctx.edit(async () => {
+        const tx = { id: genId("tx"), kind: "saja", member: m.id, ym, amount, at: today2(), note: "" };
+        await attachReceipt(tx, st, ctx.user?.name);
+        await saveDoc("txs", tx, ctx.user?.name, "create");
+      }, `✅ ${m.name} ${fmtBaht(amount)}฿ — แตะชื่อเพื่อพิมพ์สลิป`);
+    }
+    async function recordSajaAsk(m, amt) {
+      const v = await inputBox("💵 รับเงินพิเศษ — " + m.name, {
         label: fmtYM(ym) + " ส่งกี่บาท?", value: String(amt), type: "number",
-        hint: "แก้ได้ถ้าส่งไม่เท่ากติกา (ระบบจะบันทึกยอดจริง)",
+        hint: "ใช้เมื่อยอดไม่เท่ากติกา เช่น จ่ายชดเชยเดือนที่ขาด",
       });
       if (v == null || v === "") return;
       const amount = round2(Number(v)); if (amount <= 0) return toast("ใส่จำนวนเงินก่อน", 2000, true);
-      await ctx.edit(() => saveDoc("txs", {
-        id: genId("tx"), kind: "saja", member: m.id, ym, amount, at: today2(), note: "" }, ctx.user?.name, "create"),
-        `✅ ${m.name} ส่ง ${fmtBaht(amount)} ฿`);
+      await ctx.edit(async () => {
+        const tx = { id: genId("tx"), kind: "saja", member: m.id, ym, amount, at: today2(), note: "ยอดพิเศษ" };
+        await attachReceipt(tx, st, ctx.user?.name);
+        await saveDoc("txs", tx, ctx.user?.name, "create");
+      }, `✅ ${m.name} ส่ง ${fmtBaht(amount)} ฿`);
     }
     function showMonth(m) {
-      modal("🧾 " + m.name + " — " + fmtYM(ym),
-        h("p", {}, "ส่งแล้ว " + fmtBaht(sumSaja(st, m.id, ym)) + " บาท ✅"), [
+      const tx = st.txs.filter((x) => x.kind === "saja" && x.member === m.id && x.ym === ym).sort((a, b) => (a.updatedAt || "") < (b.updatedAt || "") ? -1 : 1).pop();
+      const body = h("div", { class: "stack" },
+        tx && tx.receiptNo ? h("p", { style: "font-family:monospace;font-size:1.02rem;background:var(--teal-l);border-radius:10px;padding:8px 12px" },
+          "เลขที่: " + tx.receiptNo + "\nรหัสตรวจสลิป: " + (tx.vcode || "—")) : null,
+        h("p", {}, "ยอดที่รับ: " + fmtBaht(sumSaja(st, m.id, ym)) + " บาท (" + (tx ? fmtDate2(tx.at) : "-") + ")"));
+      modal("🧾 " + m.name + " — " + fmtYM(ym), body, [
         { label: "ปิด" },
-        ...(ctx.canEdit ? [{ label: "🗑️ ลบ (บันทึกผิด)", cls: "btn-red", fn: () => undoSaja(m) }] : []),
+        ...(tx ? [{ label: "🖨️ พิมพ์สลิป", cls: "btn-primary", fn: () => { import("./fileio.js").then((F) => F.printHTML("สลิป " + tx.receiptNo, require_slip(tx))); } }] : []),
+        ...(ctx.canEdit && tx ? [{ label: "✏️ แก้ยอด", fn: () => changeSaja(tx) }] : []),
+        ...(ctx.canEdit && tx ? [{ label: "🗑️ ลบ", cls: "btn-red", fn: () => undoSaja(m) }] : []),
       ]);
+      function fmtDate2(x) { const [y, mo, d] = String(x).split("-"); return `${d}/${mo}/${+y + 543}`; }
+    }
+    function require_slip(tx) { return slipHTML(tx, st, { copyLabel: "ต้นขั้วกลุ่ม" }) + slipHTML(tx, st, { copyLabel: "ให้สมาชิก" }); }
+    async function changeSaja(tx) {
+      const v = await inputBox("✏️ แก้ยอดเงิน — จะออกเลขที่สลิปใหม่", {
+        label: "ยอดที่ถูกต้อง (฿)", value: String(tx.amount), type: "number",
+        hint: "ระบบเก็บเลขที่ไว้ + สลิปเก่าจะตรวจไม่ผ่าน (หลักฐานว่ามีการแก้)",
+      });
+      if (v == null || !(Number(v) > 0)) return;
+      await ctx.edit(async () => {
+        const nt = { ...tx, id: tx.id, amount: round2(Number(v)), note: (tx.note ? tx.note + " | " : "") + "แก้เป็น " + fmtBaht(v) + "฿" };
+        await attachReceipt(nt, st, ctx.user?.name); // เลขเอกสารคงเดิม รหัสตรวจเปลี่ยน → สลิปกระดาษเก่าตรวจพบทันทีว่าถูกแก้
+        await saveDoc("txs", nt, ctx.user?.name, "update");
+      }, "✏️ แก้ยอด + ออกสลิปใหม่ให้แล้ว (พิมพ์แจกแทนของเก่า)");
     }
     async function undoSaja(m) {
       const reason = await inputBox("ลบรายการส่งเงิน (Soft Delete)", { label: "เหตุผล *", hint: "เช่น ลงวันผิด / ยอดผิด — แล้วบันทึกใหม่" });
@@ -110,7 +180,9 @@ export async function renderSavings(ctx) {
       await ctx.edit(async () => {
         for (const m of dueList) {
           const amt = Number(m.monthly) || st.cfg.sajaMonthly || 50;
-          await saveDoc("txs", { id: genId("tx"), kind: "saja", member: m.id, ym, amount: amt, at: today2(), note: "บันทึกรวมท้ายเดือน" }, ctx.user?.name, "create");
+          const tx = { id: genId("tx"), kind: "saja", member: m.id, ym, amount: amt, at: today2(), note: "รับเหมาทั้งแถว" };
+          await attachReceipt(tx, st, ctx.user?.name);
+          await saveDoc("txs", tx, ctx.user?.name, "create");
         }
       }, `✅ บันทึก ${dueList.length} คนแล้ว — ฝอยนับเงินจริงแล้วลองเทียบกับสมุด`);
     }

@@ -12,6 +12,8 @@ import { renderDividend } from "./ui-dividend.js";
 import { renderReports } from "./ui-reports.js";
 import { renderAudit } from "./ui-audit.js";
 import { renderSettings, renderBackup, renderUsers, renderPublic } from "./ui-settings.js";
+import { renderPayday } from "./ui-payday.js";
+import { renderVerify } from "./ui-verify.js";
 
 export const App = { user: null, st: null, route: "dashboard", param: null };
 
@@ -30,7 +32,9 @@ const ROUTES = {
   backup: { title: "สำรอง / ซิงก์", fn: renderBackup, tab: "backup" },
   users: { title: "ผู้ใช้งาน / PIN", fn: renderUsers, tab: "menu" },
   public: { title: "ดูยอดสมาชิก", fn: renderPublic, tab: "menu" },
-  menu: { title: "อื่นๆ", fn: renderMenu, tab: "menu" },
+  payday: { title: "เคาน์เตอร์ผ่อนวันนี้", fn: renderPayday, tab: "loans" },
+  verify: { title: "ตรวจสลิป", fn: renderVerify, tab: "menu" },
+  menu: { title: "อื่น ๆ", fn: renderMenu, tab: "menu" },
 };
 
 /* ---------- สิทธิ์: auditor = อ่านอย่างเดียว ---------- */
@@ -82,6 +86,8 @@ function renderMenu(ctx) {
     ["📊", "รายงาน", "PDF · Excel · CSV", "reports"],
     ["🧰", "สวัสดิการ", "ฌาปนกิจ เจ็บป่วย ทุนเรียน", "welfare"],
     ["🎁", "ปันผล 31 ธ.ค.", "คำนวณจ่ายตามหุ้น", "dividend"],
+    ["💵", "เคาน์เตอร์ผ่อนวันนี้", "รับผ่อน 1 จอแตะเดียวจบ", "payday"],
+    ["🧾", "ตรวจสลิป", "ยืนยันสลิปจริง ปลอม/ถูกแก้", "verify"],
     ["👁️", "ให้สมาชิกดูยอด", "เปิดเครื่องให้ดูรายคน", "public"],
     ["📜", "ตรวจการแก้ไข", "Audit trail", "audit"],
     ["☁️", "สำรอง/ซิงก์", "JSON · GitHub", "backup"],

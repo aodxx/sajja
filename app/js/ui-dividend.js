@@ -4,6 +4,7 @@ import { saveDoc } from "./db.js";
 import { dividendCalc, round2, feeIncomeByYear, defaultNetProfit } from "./calc.js";
 import { tbl } from "./ui-members.js";
 import { reportButtons } from "./fileio.js";
+import { attachReceipt } from "./receipt.js";
 
 export async function renderDividend(ctx) {
   const { st, root } = ctx;
@@ -64,8 +65,11 @@ export async function renderDividend(ctx) {
     const yes = await confirmBox(`ยืนยันจ่ายเงินปันผล ${dd.rows.filter((r) => r.amount > 0).length} คน รวม ${fmtBaht(dd.sumRows)} ฿?\n(สร้าง “รายการจ่าย” ในบัญชีกลุ่ม — ถ้าจ่ายจริงไม่เท่านี้ให้ void แล้วแก้)`, { okLabel: "💵 บันทึกจ่าย" });
     if (!yes) return;
     await ctx.edit(async () => {
-      for (const r of dd.rows.filter((x) => x.amount > 0))
-        await saveDoc("txs", { id: genId("tx"), kind: "dividend_pay", member: r.member, amount: r.amount, year: sel.year, at: new Date().toISOString().slice(0, 10), ym: curYM(), note: "ปันผลปี " + (sel.year + 543) }, ctx.user?.name, "create");
+      for (const r of dd.rows.filter((x) => x.amount > 0)) {
+        const t = { id: genId("tx"), kind: "dividend_pay", member: r.member, amount: r.amount, year: sel.year, at: new Date().toISOString().slice(0, 10), ym: curYM(), note: "ปันผลปี " + (sel.year + 543) };
+        await attachReceipt(t, st, ctx.user?.name);
+        await saveDoc("txs", t, ctx.user?.name, "create");
+      }
     }, "💵 บันทึกจ่ายปันผลแล้ว");
   }
 }

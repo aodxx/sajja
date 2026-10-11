@@ -3,6 +3,7 @@ import { h, toast, fmtBaht, fmtDate, curYM, genId, inputBox, confirmBox, modal }
 import { saveDoc, byType } from "./db.js";
 import { welfareFund, sickNightsThisYear, round2 } from "./calc.js";
 import { tbl } from "./ui-members.js";
+import { attachReceipt } from "./receipt.js";
 
 const OUT_TYPES = [
   ["cremation", "🕯️ ฌาปนกิจ/ช่วยเหลืองานศพ"],
@@ -77,7 +78,7 @@ export async function renderWelfare(ctx) {
   async function simpleCase(m, label, askAmt) {
     const amt = await inputBox(askAmt); if (!amt || !(Number(amt) > 0)) return;
     const note = await inputBox("รายละเอียดกรณี (ใส่เหตุผลไว้เป็นหลักฐาน)", { value: "" });
-    await ctx.edit(() => saveDoc("txs", { id: genId("tx"), kind: "welfare_out", cat: label.slice(2), member: m.id, memberName: m.name, amount: round2(Number(amt)), at: today, ym: curYM(), title: label, note: note || "" }, ctx.user?.name, "create"), `✅ จ่าย ${label} ${fmtBaht(amt)} ฿ ให้ ${m.name}`);
+    await ctx.edit(async () => { const t = { id: genId("tx"), kind: "welfare_out", cat: label.slice(2), member: m.id, memberName: m.name, amount: round2(Number(amt)), at: today, ym: curYM(), title: label, note: note || "" }; await attachReceipt(t, st, ctx.user?.name); await saveDoc("txs", t, ctx.user?.name, "create"); }, `✅ จ่าย ${label} ${fmtBaht(amt)} ฿ ให้ ${m.name}`);
   }
   async function sickPay(m) {
     const doneThisYear = sickNightsThisYear(st, m.id, year);
@@ -91,9 +92,11 @@ export async function renderWelfare(ctx) {
     }
     const amt = round2(Math.min(n, left) * st.cfg.sickNightPay) + (n > left ? round2((n - left) * st.cfg.sickNightPay) : 0);
     const note = await inputBox("เหตุผล/สถานที่รักษา (หลักฐาน)", { value: "" });
-    await ctx.edit(() => saveDoc("txs", {
+    await ctx.edit(async () => { const t = {
       id: genId("tx"), kind: "welfare_out", cat: "sick", member: m.id, memberName: m.name,
-      nights: n, amount: amt, overQuota: n > left, at: today, ym: curYM(), title: "🛏️ ค่าเสียโอกาสเจ็บป่วย", note: note || "" }, ctx.user?.name, "create"),
+      nights: n, amount: amt, overQuota: n > left, at: today, ym: curYM(), title: "🛏️ ค่าเสียโอกาสเจ็บป่วย", note: note || "" };
+      await attachReceipt(t, st, ctx.user?.name);
+      await saveDoc("txs", t, ctx.user?.name, "create"); },
       `✅ จ่าย ${fmtBaht(amt)} ฿ (${n} คืน × ${st.cfg.sickNightPay}฿)`);
   }
 }

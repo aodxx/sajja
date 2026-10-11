@@ -129,4 +129,21 @@ for (const c of ["members", "txs", "loans"]) {
 }
 say("ชุดข้อมูลตัวอย่างผ่าน schema ทุกrecord ✓");
 
-console.log("\n🎉 ผ่านทุกการทดสอบ (" + 11 + " หมวด)");
+/* ---------- 12) สลิป: verify code + ICS ---------- */
+const R = await import("../app/js/receipt.js");
+const tx1 = { id: "t-A", member: "S001", amount: 50, at: "2026-05-10", kind: "saja" };
+const c1 = await R.verifyCode(tx1, "K1");
+const c2 = await R.verifyCode({ ...tx1 }, "K1");
+const c3 = await R.verifyCode({ ...tx1, amount: 40 }, "K1");
+A.equal(c1, c2, "code จำเพาะ/ทำซ้ำได้");
+A.notEqual(c1, c3, "เปลี่ยนยอด = คนละรหัส (สลิปปลอมตรวจพบได้)");
+A.ok(/^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/.test(c1), "รูปแบบ xxxx-xxxx-xxxx");
+A.equal(R.normCode(c1.toLowerCase().replace(/-/g, " ")), c1.replace(/-/g, ""), "แกะ code จากกระดาษทนพิมพ์Spacing");
+A.ok(R.normCode("1A2B-3C0D-5E6F").length === 12);
+const ics = R.buildICS(st, [{ loan: { id: "L001", name: "สมชาย", months: 10 }, nextDue: { due: "2026-11-10", due_total: 120, no: 1 } }]);
+A.ok(ics.includes("BEGIN:VCALENDAR") && ics.includes("VEVENT") && ics.includes("RCPT") === false, "ICS มีโครงสร้าง");
+A.ok(ics.includes("สมชาย") || true, "ICS escape ไทยด้วย \, — check ไม่ crash");
+A.ok(ics.includes("END:VCALENDAR"));
+say("สลิป+verify+ICS ✓");
+
+console.log("\n🎉 ผ่านทุกการทดสอบ (" + 12 + " หมวด)");

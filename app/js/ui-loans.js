@@ -4,6 +4,7 @@ import { saveDoc, byType, getDoc, softRemove } from "./db.js";
 import { loadState } from "./calc.js";
 import { eligibility, loanState, schedule, round2, LOAN_PURPOSES, memberById, activeLoans } from "./calc.js";
 import { tbl } from "./ui-members.js";
+import { attachReceipt } from "./receipt.js";
 
 export const PURPOSE_OPTS = Object.entries(LOAN_PURPOSES).map(([k, v]) => [k, `${v.prio === 1 ? "🚑" : v.prio === 2 ? "🎓" : "📦"} ${v.th} (ลำดับ ${v.prio})`]);
 
@@ -244,7 +245,9 @@ export async function renderLoan(ctx, id) {
     if (!yes) return;
     await ctx.edit(async () => {
       await saveDoc("loans", { ...l, id: l.id, status: "active", approvedBy: ctx.user?.name, approvedAt: new Date().toISOString() }, ctx.user?.name, "update");
-      await saveDoc("txs", { id: genId("tx"), kind: "loan_out", member: l.member, loanId: l.id, amount: l.principal, at: l.start || today, ym: (l.start || today).slice(0, 7), note: "จ่ายกู้ " + l.id }, ctx.user?.name, "create");
+      const t = { id: genId("tx"), kind: "loan_out", member: l.member, loanId: l.id, amount: l.principal, at: l.start || today, ym: (l.start || today).slice(0, 7), note: "จ่ายกู้ " + l.id };
+      await attachReceipt(t, st, ctx.user?.name);
+      await saveDoc("txs", t, ctx.user?.name, "create");
     }, "✅ อนุมัติ + บันทึกจ่ายเงินกู้แล้ว");
   }
   async function reject() {
@@ -259,7 +262,9 @@ export async function renderLoan(ctx, id) {
     const amt = round2(Number(v)); if (amt <= 0) return toast("ใส่จำนวนเงินก่อน", 2000, true);
     const note = await inputBox("ออกใบเสร็จ", { label: "เอกสาร/หมายเหตุ (เว้นว่างได้)", value: "" });
     await ctx.edit(async () => {
-      await saveDoc("txs", { id: genId("tx"), kind: "loan_repay", member: l.member, loanId: l.id, amount: amt, fee: 0, principal: 0, at: today, ym: today.slice(0, 7), note: (note || "").trim() }, ctx.user?.name, "create");
+      const t2 = { id: genId("tx"), kind: "loan_repay", member: l.member, loanId: l.id, amount: amt, at: today, ym: today.slice(0, 7), note: (note || "").trim() };
+      await attachReceipt(t2, st, ctx.user?.name);
+      await saveDoc("txs", t2, ctx.user?.name, "create");
       // ถ้ายอดคงเหลือ = 0 → ปิดสัญญาอัตโนมัติ
       const st2 = await freshState();
       const s3 = loanState(st2, (await getDoc("loans", l.id)), today);
